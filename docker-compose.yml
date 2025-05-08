@@ -1,64 +1,61 @@
-version: "3.9"
+version: '3.8'
+
 services:
-  n8n:
-    build: .
-    ports:
-      - "5678:5678"
-    environment:
-      - DB_TYPE=postgresdb
-      - DB_POSTGRESDB_HOST=postgres
-      - DB_POSTGRESDB_PORT=5432
-      - DB_POSTGRESDB_DATABASE=${POSTGRES_DB}
-      - DB_POSTGRESDB_USER=${POSTGRES_USER}
-      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - EXECUTIONS_PROCESS=main
-      - EXECUTIONS_MODE=queue
-      - N8N_WORKER_ID=main
-      - N8N_LOG_LEVEL=info
-      - N8N_METRICS=true
-      - WEBHOOK_URL=${WEBHOOK_URL}
-      - N8N_BASIC_AUTH_ACTIVE=true
-      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}
-      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
-    depends_on:
-      - postgres
-      - redis
-
-  n8n-worker:
-    build: .
-    environment:
-      - DB_TYPE=postgresdb
-      - DB_POSTGRESDB_HOST=postgres
-      - DB_POSTGRESDB_PORT=5432
-      - DB_POSTGRESDB_DATABASE=${POSTGRES_DB}
-      - DB_POSTGRESDB_USER=${POSTGRES_USER}
-      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - EXECUTIONS_PROCESS=queue
-      - N8N_LOG_LEVEL=info
-      - N8N_METRICS=true
-      - N8N_WORKER_ID=worker-1
-      - WEBHOOK_URL=${WEBHOOK_URL}
-    depends_on:
-      - postgres
-      - redis
-
   postgres:
-    image: postgres:15
+    image: postgres
     restart: always
     environment:
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: mypasswd
+    networks:
+      - n8n
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
 
   redis:
-    image: redis:7
+    image: redis
     restart: always
+    networks:
+      - n8n
+
+  n8n-main:
+    image: n8nio/n8n
+    restart: always
+    env_file:
+      - .n8n/queue.env
+    ports:
+      - "5678:5678"
+    networks:
+      - n8n
+
+  n8n-worker1:
+    image: n8nio/n8n
+    restart: always
+    command: worker
+    env_file:
+      - .n8n/queue.env
+    networks:
+      - n8n
+
+  n8n-worker2:
+    image: n8nio/n8n
+    restart: always
+    command: worker
+    env_file:
+      - .n8n/queue.env
+    networks:
+      - n8n
+
+  n8n-webhook:
+    image: n8nio/n8n
+    restart: always
+    command: webhook
+    env_file:
+      - .n8n/queue.env
+    networks:
+      - n8n
 
 volumes:
-  postgres_data:
+  pgdata:
+
+networks:
+  n8n:
